@@ -1,0 +1,4 @@
+unhappiness|不快乐|un:前缀:否定;happy:词根:快乐;ness:后缀:状态|/ʌnˈhæpɪnəs/|"His unhappiness was evident in his expression." ~ "他的不快乐从表情中表露无遗。"
+happiness|快乐|happy:词根:快乐;ness:后缀:状态|/ˈhæpɪnəs/|"Happiness comes from within." ~ "快乐源于内心。"
+happy|快乐的|happy:词根:快乐|/ˈhæpi/|"I'm happy to help you." ~ "我很乐意帮助你。"
+unhappy|不快乐的|un:前缀:否定;happy:词根:快乐|/ʌnˈhæpi/|"She looked unhappy about the news." ~ "她看起来对这个消息很不高兴。" 
