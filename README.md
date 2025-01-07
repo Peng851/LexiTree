@@ -80,6 +80,10 @@
 - 开发语言：Swift
 - UI 框架：SwiftUI
 - 目标平台：iOS 15.0+
+- 版本适配：
+  - iOS 15-16：使用 UIActivityViewController 实现分享
+  - iOS 16+：使用新的 ShareLink API
+  - 其他新API特性会做相应的版本判断和降级处理
 - 平台特性：
   - iOS 16+：使用新的 ShareLink API
   - iOS 15：使用 UIActivityViewController

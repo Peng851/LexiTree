@@ -3,7 +3,7 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            NavigationStack {
+            NavigationView {
                 WordListView()
             }
             .tabItem {
@@ -17,14 +17,14 @@ struct ContentView: View {
                 print("📦 Bundle 路径：\(Bundle.main.bundlePath)")
             }
             
-            NavigationStack {
+            NavigationView {
                 StudyView()
             }
             .tabItem {
                 Label("学习", systemImage: "brain.head.profile")
             }
             
-            NavigationStack {
+            NavigationView {
                 ProfileView()
             }
             .tabItem {
@@ -32,4 +32,8 @@ struct ContentView: View {
             }
         }
     }
+}
+
+#Preview {
+    ContentView()
 } 

@@ -5,20 +5,24 @@ struct RootNetworkView: View {
     let root: Root
     
     var body: some View {
-        // 将复杂的表达式拆分成更小的部分
-        ScrollView {
-            VStack(spacing: 20) {
-                // 词根信息部分
-                rootInfoSection
-                
-                // 关系列表部分
-                relationsList
+        // 使用NavigationView替代NavigationStack
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // 词根信息部分
+                    rootInfoSection
+                    
+                    // 关系列表部分
+                    relationsList
+                }
+                .padding()
             }
-            .padding()
-        }
-        .navigationTitle("词根关系")
-        .task {
-            await viewModel.loadRelations(for: root)
+            .navigationTitle("词根关系")
+            .onAppear {
+                Task {
+                    await viewModel.loadRelations(for: root)
+                }
+            }
         }
     }
     
@@ -37,19 +41,61 @@ struct RootNetworkView: View {
     // 关系列表部分
     private var relationsList: some View {
         ForEach(viewModel.relations, id: \.root2.id) { relation in
-            VStack(alignment: .leading, spacing: 8) {
-                Text(relation.root2.text)
-                    .font(.headline)
-                Text(relation.relationType)
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-                Text(relation.description)
-                    .font(.body)
-                    .foregroundColor(.secondary)
+            NavigationLink(destination: RootDetailView(root: relation.root2)) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(relation.root2.text)
+                        .font(.headline)
+                    Text(relation.relationType)
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                    Text(relation.description)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(10)
             }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
+        }
+    }
+}
+
+struct RootDetailView: View {
+    let root: Root
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = RootDetailViewModel()
+    
+    var body: some View {
+        // 使用NavigationView替代NavigationStack
+        NavigationView {
+            List {
+                Section("词根释义") {
+                    Text(root.rootDescription)
+                        .font(.body)
+                }
+                
+                Section("相关单词") {
+                    ForEach(viewModel.words) { word in
+                        NavigationLink(destination: WordDetailView(word: word)) {
+                            WordRowView(word: word)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(root.text)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await viewModel.loadWords(for: root)
+            }
         }
     }
 }
@@ -74,55 +120,6 @@ struct RootNodeView: View {
     }
 }
 
-struct RootRelation: Identifiable {
-    let id: UUID
-    let type: String
-    let startPoint: CGPoint
-    let endPoint: CGPoint
-    
-    var midPoint: CGPoint {
-        CGPoint(
-            x: (startPoint.x + endPoint.x) / 2,
-            y: (startPoint.y + endPoint.y) / 2
-        )
-    }
-}
-
-struct RootDetailView: View {
-    let root: Root
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = RootDetailViewModel()
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("词根释义") {
-                    Text(root.rootDescription)
-                        .font(.body)
-                }
-                
-                Section("相关单词") {
-                    ForEach(viewModel.words) { word in
-                        NavigationLink {
-                            WordDetailView(word: word)
-                        } label: {
-                            WordRowView(word: word)
-                        }
-                    }
-                }
-            }
-            .navigationTitle(root.text)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .task {
-            await viewModel.loadWords(for: root)
-        }
-    }
+#Preview {
+    RootNetworkView(root: PreviewData.root)
 } 

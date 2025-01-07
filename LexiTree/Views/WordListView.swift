@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WordListView: View {
     @StateObject private var viewModel: WordListViewModel
+    @State private var searchText = ""
     let root: Root?
     
     init(root: Root? = nil) {
@@ -11,18 +12,25 @@ struct WordListView: View {
     
     var body: some View {
         List {
-            ForEach(viewModel.words) { word in
-                NavigationLink(value: word) {
+            ForEach(viewModel.filteredWords) { word in
+                NavigationLink(destination: WordDetailView(word: word)) {
                     WordRowView(word: word)
                 }
             }
         }
-        .navigationTitle(root?.text ?? "单词列表")
-        .navigationDestination(for: Word.self) { word in
-            WordDetailView(word: word)
+        .searchable(text: $searchText)
+        .onChange(of: searchText) { newValue in
+            viewModel.filterWords(searchText: newValue)
         }
-        .task {
-            await viewModel.loadAllWords()
+        .navigationTitle(root?.text ?? "单词列表")
+        .onAppear {
+            Task {
+                if let root = root {
+                    await viewModel.loadWords(forRoot: root)
+                } else {
+                    await viewModel.loadAllWords()
+                }
+            }
         }
     }
 }
@@ -55,6 +63,7 @@ struct WordRowView: View {
 }
 
 #Preview {
-    WordListView(root: PreviewData.root)
-        .modifier(PreviewNavigationModifier())
+    NavigationView {
+        WordListView(root: PreviewData.root)
+    }
 } 

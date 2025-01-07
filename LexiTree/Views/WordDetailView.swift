@@ -5,7 +5,6 @@ import UIKit
 
 struct WordDetailView: View {
     let word: Word
-    @State private var isSharePresented = false
     
     var body: some View {
         List {
@@ -36,17 +35,10 @@ struct WordDetailView: View {
             }
             
             Section {
-                Button(action: {
-                    isSharePresented = true
-                }) {
-                    Label("分享", systemImage: "square.and.arrow.up")
-                }
+                ShareButton(content: "\(word.text): \(word.meaning)")
             }
         }
         .navigationTitle(word.text)
-        .sheet(isPresented: $isSharePresented) {
-            ShareSheet(text: "\(word.text): \(word.meaning)")
-        }
     }
 }
 

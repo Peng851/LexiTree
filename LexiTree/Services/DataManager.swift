@@ -29,37 +29,89 @@ final class DataManager {
     @MainActor
     private func setupDatabase() async {
         do {
-            let dbPath = getDatabasePath()
+            let dbPath = getDocumentsDirectory().appendingPathComponent("lexitree.db").path
             print("📂 数据库路径: \(dbPath)")
             
-            // 直接打开数据库连接
-            openConnection(at: dbPath)
-            
-            if db == nil {
-                print("⚠️ 数据库连接失败")
+            // 打开或创建数据库
+            if sqlite3_open(dbPath, &db) == SQLITE_OK {
+                print("✅ 数据库连接成功")
+                // 创建表结构
+                createTablesDirectly()
+                
+                // 检查是否需要导入初始数据
+                if try await isEmptyDatabase() {
+                    print("📥 数据库为空，准备导入初始数据...")
+                    try await importInitialData()
+                }
+            } else {
+                print("❌ 数据库连接失败")
                 throw DatabaseError.connectionFailed
             }
-            
-            print("✅ 数据库连接成功")
         } catch {
             print("❌ 数据库设置失败: \(error)")
         }
     }
     
-    private func getDatabasePath() -> String {
-        // 1. 首先尝试获取 Documents 目录中的数据库
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dbPath = documentsPath.appendingPathComponent("lexitree.db").path
+    private func isEmptyDatabase() async throws -> Bool {
+        let query = "SELECT COUNT(*) FROM words;"
+        var statement: OpaquePointer?
         
-        // 2. 如果 Documents 中不存在，则使用 Bundle 中的数据库
-        if !FileManager.default.fileExists(atPath: dbPath) {
-            // 使用项目目录中的数据库
-            if let bundlePath = Bundle.main.path(forResource: "lexitree", ofType: "db", inDirectory: "../Database") {
-                return bundlePath
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+            return true // 如果表不存在，也认为是空数据库
+        }
+        defer { sqlite3_finalize(statement) }
+        
+        if sqlite3_step(statement) == SQLITE_ROW {
+            let count = sqlite3_column_int(statement, 0)
+            return count == 0
+        }
+        return true
+    }
+    
+    private func importInitialData() async throws {
+        // 添加更多初始数据
+        let initialRoots = [
+            Root(id: UUID(), text: "act", meaning: "行动", rootDescription: "表示行动或做"),
+            Root(id: UUID(), text: "duc", meaning: "引导", rootDescription: "表示引导或带领"),
+            Root(id: UUID(), text: "port", meaning: "搬运", rootDescription: "表示搬运或携带"),
+            Root(id: UUID(), text: "spect", meaning: "看", rootDescription: "表示看或观察"),
+            Root(id: UUID(), text: "struct", meaning: "建造", rootDescription: "表示建造或构建")
+        ]
+        
+        let initialWords = [
+            Word(id: UUID(), text: "action", meaning: "行动", root: "act", prefix: nil, suffix: "ion", pronunciation: "/ˈækʃən/"),
+            Word(id: UUID(), text: "conduct", meaning: "引导", root: "duc", prefix: "con", suffix: "t", pronunciation: "/kənˈdʌkt/"),
+            Word(id: UUID(), text: "export", meaning: "出口", root: "port", prefix: "ex", suffix: nil, pronunciation: "/ˈekspɔːrt/"),
+            Word(id: UUID(), text: "inspect", meaning: "检查", root: "spect", prefix: "in", suffix: nil, pronunciation: "/ɪnˈspekt/"),
+            Word(id: UUID(), text: "structure", meaning: "结构", root: "struct", prefix: nil, suffix: "ure", pronunciation: "/ˈstrʌktʃər/")
+        ]
+        
+        // 保存根词
+        for root in initialRoots {
+            do {
+                try await saveRoot(root)
+                print("✅ 成功保存词根: \(root.text)")
+            } catch {
+                print("❌ 保存词根失败: \(root.text), 错误: \(error)")
             }
         }
         
-        return dbPath
+        // 保存单词
+        for word in initialWords {
+            do {
+                try await saveWord(word)
+                print("✅ 成功保存单词: \(word.text)")
+            } catch {
+                print("❌ 保存单词失败: \(word.text), 错误: \(error)")
+            }
+        }
+        
+        print("✅ 初始数据导入完成")
+    }
+    
+    private func getDocumentsDirectory() -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documentsDirectory
     }
     
     private func createNewDatabase(at path: String) {
@@ -179,7 +231,7 @@ final class DataManager {
     @MainActor
     func saveRoot(_ root: Root) async throws {
         let query = """
-            INSERT OR REPLACE INTO roots (id, text, meaning, description)
+            INSERT OR REPLACE INTO roots (id, text, meaning, root_description)
             VALUES (?, ?, ?, ?);
         """
         
@@ -238,7 +290,7 @@ final class DataManager {
         sqlite3_close(db)
         db = nil
         
-        let dbPath = getDatabasePath()
+        let dbPath = getDocumentsDirectory().appendingPathComponent("lexitree.db").path
         try fileManager.copyItem(at: URL(fileURLWithPath: dbPath), 
                                to: exportURL)
         
@@ -393,7 +445,7 @@ final class DataManager {
             return false
         }
         
-        let dbPath = getDatabasePath()
+        let dbPath = getDocumentsDirectory().appendingPathComponent("lexitree.db").path
         
         do {
             if FileManager.default.fileExists(atPath: dbPath) {
@@ -530,5 +582,82 @@ final class DataManager {
             roots: roots,
             affixes: affixes
         )
+    }
+    
+    private func createTablesDirectly() {
+        let createTableStatements = [
+            """
+            CREATE TABLE IF NOT EXISTS words (
+                id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                meaning TEXT NOT NULL,
+                root TEXT NOT NULL,
+                prefix TEXT,
+                suffix TEXT,
+                pronunciation TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS roots (
+                id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                meaning TEXT NOT NULL,
+                root_description TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS affixes (
+                id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                type TEXT NOT NULL,
+                meaning TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS sentences (
+                id TEXT PRIMARY KEY,
+                word_id TEXT NOT NULL,
+                text TEXT NOT NULL,
+                translation TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(word_id) REFERENCES words(id)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS root_relations (
+                id TEXT PRIMARY KEY,
+                root1_id TEXT NOT NULL,
+                root2_id TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                description TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(root1_id) REFERENCES roots(id),
+                FOREIGN KEY(root2_id) REFERENCES roots(id)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS learning_records (
+                id TEXT PRIMARY KEY,
+                date DATE NOT NULL,
+                minutes INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        ]
+        
+        for statement in createTableStatements {
+            var errMsg: UnsafeMutablePointer<Int8>?
+            if sqlite3_exec(db, statement, nil, nil, &errMsg) != SQLITE_OK {
+                let error = String(cString: errMsg!)
+                print("❌ 创建表失败: \(error)")
+                sqlite3_free(errMsg)
+            } else {
+                print("✅ 成功创建表")
+            }
+        }
+        print("✅ 所有数据库表创建完成")
     }
 } 
