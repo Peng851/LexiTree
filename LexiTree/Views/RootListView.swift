@@ -5,9 +5,7 @@ struct RootListView: View {
     
     var body: some View {
         List(viewModel.roots) { root in
-            NavigationLink {
-                WordListView(root: root)
-            } label: {
+            NavigationLink(destination: WordListView(root: root)) {
                 RootRowView(root: root)
             }
         }
@@ -20,39 +18,19 @@ struct RootListView: View {
 
 struct RootRowView: View {
     let root: Root
-    @State private var isExpanded = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading) {
+            Text(root.text)
+                .font(.headline)
             HStack {
-                VStack(alignment: .leading) {
-                    Text(root.text)
-                        .font(.headline)
-                    Text(root.meaning)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                Text(root.meaning)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 Spacer()
-                Text("\(root.words.count)词")
+                Text("\(root.words.count) 个单词")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            
-            if isExpanded {
-                Text(root.rootDescription)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation {
-                isExpanded.toggle()
             }
         }
     }

@@ -9,12 +9,7 @@ struct Root: Identifiable, Codable {
     var words: [Word] = []
     
     enum CodingKeys: String, CodingKey {
-        case id
-        case text
-        case meaning
+        case id, text, meaning
         case rootDescription = "description"
     }
-    
-    // CGPoint 不是 Codable，所以我们不编码 position
-    // words 是计算属性，也不需要编码
-} 
+}

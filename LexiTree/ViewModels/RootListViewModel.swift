@@ -11,7 +11,13 @@ final class RootListViewModel: ObservableObject {
     
     func loadRoots() async {
         do {
-            roots = try await repository.fetchAllRoots()
+            var loadedRoots = try await repository.fetchAllRoots()
+            
+            for i in loadedRoots.indices {
+                loadedRoots[i].words = try await repository.fetchWords(forRoot: loadedRoots[i].text)
+            }
+            
+            roots = loadedRoots
         } catch {
             print("Error loading roots: \(error)")
         }

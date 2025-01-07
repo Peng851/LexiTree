@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 @MainActor
 final class StudyViewModel: ObservableObject {
@@ -33,11 +34,4 @@ final class StudyViewModel: ObservableObject {
             print("Error loading roots: \(error)")
         }
     }
-}
-
-struct ExampleSentence: Identifiable {
-    let id: UUID
-    let text: String
-    let translation: String
-    let wordId: String
 }

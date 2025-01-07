@@ -23,13 +23,11 @@ struct WordListView: View {
             viewModel.filterWords(searchText: newValue)
         }
         .navigationTitle(root?.text ?? "单词列表")
-        .onAppear {
-            Task {
-                if let root = root {
-                    await viewModel.loadWords(forRoot: root)
-                } else {
-                    await viewModel.loadAllWords()
-                }
+        .task {
+            if let root = root {
+                await viewModel.loadWords(forRoot: root)
+            } else {
+                await viewModel.loadAllWords()
             }
         }
     }
