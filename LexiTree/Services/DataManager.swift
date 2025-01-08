@@ -9,6 +9,7 @@ enum DatabaseError: Error {
     case prepareFailed
     case executionFailed
     case insertFailed
+    case notFound
 }
 
 @MainActor
@@ -861,5 +862,77 @@ final class DataManager {
             print("❌ 文件操作失败: \(error)")
             return false
         }
+    }
+    
+    func fetchRoot(byText text: String) async throws -> Root {
+        let query = "SELECT * FROM roots WHERE text = ? LIMIT 1"
+        var statement: OpaquePointer?
+        
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        
+        sqlite3_bind_text(statement, 1, (text as NSString).utf8String, -1, nil)
+        
+        if sqlite3_step(statement) == SQLITE_ROW {
+            return Root(
+                id: UUID(uuidString: String(cString: sqlite3_column_text(statement, 0)))!,
+                text: String(cString: sqlite3_column_text(statement, 1)),
+                meaning: String(cString: sqlite3_column_text(statement, 2)),
+                rootDescription: String(cString: sqlite3_column_text(statement, 3))
+            )
+        }
+        throw DatabaseError.notFound
+    }
+    
+    func fetchWords(byRoot rootText: String) async throws -> [Word] {
+        let query = "SELECT * FROM words WHERE root LIKE ?"
+        var statement: OpaquePointer?
+        
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        
+        let searchPattern = "%\(rootText)%"
+        sqlite3_bind_text(statement, 1, (searchPattern as NSString).utf8String, -1, nil)
+        
+        var words: [Word] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let word = Word(
+                id: UUID(uuidString: String(cString: sqlite3_column_text(statement, 0)))!,
+                text: String(cString: sqlite3_column_text(statement, 1)),
+                meaning: String(cString: sqlite3_column_text(statement, 2)),
+                root: String(cString: sqlite3_column_text(statement, 3)),
+                prefix: sqlite3_column_text(statement, 4).map { String(cString: $0) },
+                suffix: sqlite3_column_text(statement, 5).map { String(cString: $0) },
+                pronunciation: String(cString: sqlite3_column_text(statement, 6))
+            )
+            words.append(word)
+        }
+        return words
+    }
+    
+    func fetchExample(forWord wordId: UUID) async throws -> ExampleSentence? {
+        let query = "SELECT * FROM sentences WHERE word_id = ? LIMIT 1"
+        var statement: OpaquePointer?
+        
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        
+        sqlite3_bind_text(statement, 1, (wordId.uuidString as NSString).utf8String, -1, nil)
+        
+        if sqlite3_step(statement) == SQLITE_ROW {
+            return ExampleSentence(
+                id: UUID(uuidString: String(cString: sqlite3_column_text(statement, 0)))!,
+                text: String(cString: sqlite3_column_text(statement, 2)),
+                translation: String(cString: sqlite3_column_text(statement, 3)),
+                wordId: String(cString: sqlite3_column_text(statement, 1))
+            )
+        }
+        return nil
     }
 } 

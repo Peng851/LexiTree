@@ -1,37 +1,20 @@
-import SwiftUI
 import Foundation
 
 @MainActor
-final class StudyViewModel: ObservableObject {
-    @Published private(set) var roots: [Root] = []
-    @Published private(set) var currentRoot: Root?
-    @Published private(set) var currentExample: ExampleSentence?
-    private let repository: WordRepository
+class StudyViewModel: ObservableObject {
+    @Published var currentRoot: Root?
+    @Published var relatedWords: [Word] = []
     
-    init() {
-        self.repository = SQLiteWordRepository(db: DataManager.shared)
-    }
+    private let dataManager = DataManager.shared
     
-    func loadRandomRoot() async {
-        do {
-            let allRoots = try await repository.fetchAllRoots()
-            if let root = allRoots.randomElement() {
-                currentRoot = root
-                // 加载该词根的一个随机例句
-                if let example = try await repository.fetchExample(forRoot: root.text) {
-                    currentExample = example
-                }
+    func loadInitialData() async {
+        // 加载默认词根 "port"
+        if let root = try? await dataManager.fetchRoot(byText: "port") {
+            self.currentRoot = root
+            // 加载相关单词
+            if let words = try? await dataManager.fetchWords(byRoot: "port") {
+                self.relatedWords = words
             }
-        } catch {
-            print("Error loading root: \(error)")
-        }
-    }
-    
-    func loadRoots() async {
-        do {
-            roots = try await repository.fetchAllRoots()
-        } catch {
-            print("Error loading roots: \(error)")
         }
     }
 }

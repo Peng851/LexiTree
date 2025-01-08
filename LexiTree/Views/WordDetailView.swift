@@ -5,6 +5,7 @@ import UIKit
 
 struct WordDetailView: View {
     let word: Word
+    @State private var example: ExampleSentence?
     
     var body: some View {
         List {
@@ -34,11 +35,31 @@ struct WordDetailView: View {
                 .padding(.vertical, 4)
             }
             
+            if let example = example {
+                Section("例句") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(example.text)
+                            .font(.body)
+                        Text(example.translation)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            
             Section {
                 ShareButton(content: "\(word.text): \(word.meaning)")
             }
         }
         .navigationTitle(word.text)
+        .task {
+            do {
+                example = try await DataManager.shared.fetchExample(forWord: word.id)
+            } catch {
+                print("❌ 加载例句失败: \(error)")
+            }
+        }
     }
 }
 
